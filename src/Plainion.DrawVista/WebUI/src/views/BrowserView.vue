@@ -121,6 +121,25 @@ export default {
 
       this.svg = svgElement.outerHTML
     },
+    async loadStartPage() {
+      const startPageResponse = await API.get('/startPage')
+      const pageContent = startPageResponse.data
+
+      const parser = new DOMParser()
+      const svgDoc = parser.parseFromString(pageContent, 'image/svg+xml')
+      const svgElement = svgDoc.documentElement
+      svgElement.setAttribute(
+        'height',
+        this.$refs.svgContainer.offsetHeight - 30
+      )
+      svgElement.setAttribute(
+        'width',
+        this.$refs.svgContainer.offsetWidth
+      )
+
+      this.selectedPage = null
+      this.svg = svgElement.outerHTML
+    },
     navigate(id) {
       this.selectedPage = this.pageNames.find(
         (x) => x.toLowerCase() === id.toLowerCase()
@@ -138,7 +157,7 @@ export default {
           page: pageName
         },
         null,
-        `${window.location.pathname}?page=${pageName}`
+        !pageName ? window.location.pathname : `${window.location.pathname}?page=${pageName}`
       )
     },
     getUrlQueryParams() {
@@ -158,16 +177,22 @@ export default {
   },
   mounted() {
     window.hook = this
-    window.onpopstate = (e) => {
-      this.updateSvg()
+    window.onpopstate = (stateChangedEvent) => {
+      console.log(`location: ${document.location}, state: ${JSON.stringify(stateChangedEvent.state)}`)
+      if (!stateChangedEvent.state.page) {
+        this.loadStartPage()
+        history.back()
+      } else {
+        this.updateSvg()
+      }
     }
-    this.updateSvg()
+
+    this.loadStartPage()
+    this.updateBrowserHistory('')
   },
   async created() {
-    const response = await API.get('/pageNames')
-    this.pageNames = response.data
-
-    this.navigate('index')
+    const pageNamesResponse = await API.get('/pageNames')
+    this.pageNames = pageNamesResponse.data
   }
 }
 </script>

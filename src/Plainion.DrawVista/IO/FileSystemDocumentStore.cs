@@ -8,6 +8,8 @@ public class FileSystemDocumentStore(string appHome) : IDocumentStore
     private readonly string myRootFolder = Path.Combine(appHome,"store");
     private readonly object myLock = new();
 
+    public event EventHandler DocumentsChanged;
+
     public IReadOnlyCollection<string> GetPageNames()
     {
         lock (myLock)
@@ -41,6 +43,8 @@ public class FileSystemDocumentStore(string appHome) : IDocumentStore
             var meta = new MetaContent(document.Captions.ToList());
             File.WriteAllText(MetaFile(document.Name), JsonConvert.SerializeObject(meta));
         }
+
+        DocumentsChanged?.Invoke(this, null);
     }
 
     public void Clear()

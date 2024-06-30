@@ -29,13 +29,17 @@ if (!Directory.Exists(inputFolder))
 var store = new SqliteDocumentStore(appData);
 store.Init();
 
-var oldStore = new FileSystemDocumentStore(appData);
-foreach (var name in oldStore.GetPageNames())
+var fileSystemDocumentStoreRoot = Path.Combine(appData,"store");
+if (Directory.Exists(fileSystemDocumentStoreRoot))
 {
-    var page = oldStore.GetPage(name);
-    store.Save(page);
+    var oldStore = new FileSystemDocumentStore(appData);
+    foreach (var name in oldStore.GetPageNames())
+    {
+        var page = oldStore.GetPage(name);
+        store.Save(page);
+    }
+    oldStore.Clear();
 }
-oldStore.Clear();
 
 builder.Services.AddSingleton<IDocumentStore>(new DocumentStoreCachingDecorator(store));
 builder.Services.AddSingleton(new DrawingWorkbookFactory(inputFolder));
@@ -43,6 +47,7 @@ builder.Services.AddSingleton<ISvgCaptionParser, SvgCaptionParser>();
 builder.Services.AddSingleton<ISvgHyperlinkFormatter, SvgHyperlinkFormatter>();
 builder.Services.AddSingleton<SvgProcessor>();
 builder.Services.AddSingleton<FullTextSearch>();
+builder.Services.AddSingleton<StartPage>();
 
 var app = builder.Build();
 app.Environment.ContentRootPath = Path.GetDirectoryName(typeof(SvgProcessor).Assembly.Location);
@@ -93,6 +98,14 @@ app.MapGet("/svg", (HttpContext context, IDocumentStore store, string pageName) 
     }
     context.Response.ContentType = "image/svg+xml";
     return store.GetPage(pageName).Content;
+});
+
+app.MapGet("/startPage", (HttpContext context, IDocumentStore store, string pageName) =>
+{
+    StartPage startPage = app.Services.GetService<StartPage>();
+    
+    context.Response.ContentType = "image/svg+xml";
+    return startPage.Svg;
 });
 
 app.MapGet("/pageNames", (IDocumentStore store) =>
